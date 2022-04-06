@@ -46,20 +46,31 @@ namespace ReelApp
             }
         }
 
+        private enum AppState
+        {
+            Idle,
+            Inventory,
+            TagOperation
+        }
+
         // Member Vars
         private ResultData _resultData = null;
         private CsvWriter _resultsLog = null;
-        private string _newPassword = null;
         private int _antenna = 0;
         private double _txPower = 0;
+        private string _newPassword = null;
+        private TagData _currentEpc = null;
+        private AppState _currentState = AppState.Idle;
 
         internal override Settings ConfigureSettings(Settings settings)
         {
-
             settings.Report.Mode = ReportMode.Individual;
-            settings.RfMode = 4;
-            settings.SearchMode = SearchMode.SingleTarget;
-            settings.Session = 0;
+            settings.Report.IncludePcBits = false;
+            settings.Report.IncludeFastId = true;
+
+            settings.RfMode = 2;
+            settings.SearchMode = SearchMode.DualTarget;
+            settings.Session = 1;
             settings.TagPopulationEstimate = 1;
 
             if (_antenna > 0 && _txPower > 0)
@@ -74,50 +85,62 @@ namespace ReelApp
                     }
                 });
             }
+
             return settings;
         }
 
         override internal void PerformTagOperation()
         {
-            TagOpSequence seq = new TagOpSequence()
-            {
-                TargetTag = new TargetTag()
-                {
-                    MemoryBank = MemoryBank.Epc,
-                    BitPointer = BitPointers.Epc,
-                    Data = null
-                },
-            };
-
-            seq.Ops.Add(new TagWriteOp()
-            {
-                AccessPassword = null,
-                MemoryBank = MemoryBank.Reserved,
-                WordPointer = WordPointers.AccessPassword,
-                Data = TagData.FromHexString(_newPassword)
-            });
-
-            seq.Ops.Add(new TagLockOp()
-            {
-                AccessPasswordLockType = TagLockState.Lock,
-                EpcLockType = TagLockState.Lock
-            });
-
-            Reader.AddOpSequence(seq);
-
-            _resultData.Reset();
-
+            if (Reader.QueryStatus().IsSingulating) Reader.Stop();
+            _currentState = AppState.Inventory;
             Reader.Start();
+        }
+
+        private void Reader_TagsReported(ImpinjReader reader, TagReport report)
+        {
+            Tag tag = report.Tags[0];
+
+            if (!tag.Epc.Equals(_currentEpc) && _currentState == AppState.Inventory)
+            {
+                _currentEpc = tag.Epc;
+
+                TagOpSequence seq = new TagOpSequence()
+                {
+                    TargetTag = new TargetTag()
+                    {
+                        MemoryBank = MemoryBank.Tid,
+                        BitPointer = 0,
+                        Data = tag.Tid.ToHexString()
+                    },
+                };
+
+                seq.Ops.Add(new TagWriteOp()
+                {
+                    AccessPassword = null,
+                    MemoryBank = MemoryBank.Reserved,
+                    WordPointer = WordPointers.AccessPassword,
+                    Data = TagData.FromHexString(_newPassword)
+                });
+
+                seq.Ops.Add(new TagLockOp()
+                {
+                    AccessPasswordLockType = TagLockState.Lock,
+                    EpcLockType = TagLockState.Lock
+                });
+
+                Reader.AddOpSequence(seq);
+
+                _currentState = AppState.TagOperation;
+                _resultData.Reset();
+            }
         }
 
         private void Reader_TagOpComplete(ImpinjReader reader, TagOpReport report)
         {
-
             _resultData.StopTimer();
 
             reader.Stop();
 
-            // Loop through all the completed tag operations
             report.Results.ForEach(result =>
             {
                 if (result is TagWriteOpResult)
@@ -148,17 +171,21 @@ namespace ReelApp
                 _resultsLog.Flush();
             }
 
+            _currentState = AppState.Idle;
             SignalNextTag();
         }
 
+
         internal AppSetPassword(string readerAddress, int antenna, double txPower, string newPassword, string outputFile) : base(readerAddress)
         {
-            this._newPassword = newPassword ?? string.Empty;
-            this._antenna = antenna;
-            this._txPower = txPower;
-            this._resultData = new ResultData();
+            _antenna = antenna;
+            _txPower = txPower;
+            this._newPassword = newPassword ?? "00000000";
+
+            _resultData = new ResultData();
 
             Reader.TagOpComplete += Reader_TagOpComplete;
+            Reader.TagsReported += Reader_TagsReported;
 
             if (outputFile != null)
             {
@@ -168,10 +195,10 @@ namespace ReelApp
                 _resultsLog.WriteField("elapsed");
                 _resultsLog.WriteField("tid");
                 _resultsLog.WriteField("epc");
-                _resultsLog.WriteField("message");
                 _resultsLog.NextRecord();
                 _resultsLog.Flush();
             }
         }
+
     }
 }

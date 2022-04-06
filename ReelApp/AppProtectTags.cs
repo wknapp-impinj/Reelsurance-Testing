@@ -97,10 +97,13 @@ namespace ReelApp
             });
 
             Reader.AddOpSequence(seq);
-
-            _resultData.Reset();
-
             Reader.Start();
+        }
+
+        private void Reader_ReaderStarted(ImpinjReader reader, ReaderStartedEvent e)
+        {
+            // Start timer only when we've started the reader...
+            _resultData.Reset();
         }
 
         private void Reader_TagOpComplete(ImpinjReader reader, TagOpReport report)
@@ -154,6 +157,7 @@ namespace ReelApp
             _enable = enable;
 
             Reader.TagOpComplete += Reader_TagOpComplete;
+            Reader.ReaderStarted += Reader_ReaderStarted;
 
             if (outputFile != null)
             {
