@@ -64,19 +64,31 @@ namespace ReelApp
                     case 0:
                         // Inventory tag
                         Console.WriteLine("Inventory Tags");
-                        app = new AppInventoryTags(readerAddress, antenna, txPowerInDbm, tagPassword, outputFile);
+                        app = new AppInventoryTags(readerAddress, antenna, txPowerInDbm, tagPassword, false, outputFile);
                         break;
                     case 1:
-                        // Set Tag Password
-                        Console.WriteLine($"Setting Password ({newTagPassword})");
-                        app = new AppSetPassword(readerAddress, antenna, txPowerInDbm, newTagPassword, outputFile);
+                        // Inventory Hidden tag
+                        Console.WriteLine("Inventory Hidden Tags");
+                        app = new AppInventoryTags(readerAddress, antenna, txPowerInDbm, tagPassword, true, outputFile);
                         break;
-
                     case 2:
+                        // Set Tag Password
+                        Console.WriteLine($"Setting Password ({tagPassword})");
+                        app = new AppSetPassword(readerAddress, antenna, txPowerInDbm, tagPassword, outputFile);
+                        break;
+                    case 3:
+                        // Unlock Tag
+                        Console.WriteLine($"Unlock Tag ({tagPassword})");
+                        app = new AppUnlockTags(readerAddress, antenna, txPowerInDbm, tagPassword, outputFile);
+                        break;
+                    case 4:
                         Console.WriteLine("Protecting Tags");
                         app = new AppProtectTags(readerAddress, antenna, txPowerInDbm, tagPassword, newTagPassword, outputFile, true);
                         break;
-
+                    case 5:
+                        Console.WriteLine("Un-protecting Tags");
+                        app = new AppProtectTags(readerAddress, antenna, txPowerInDbm, tagPassword, newTagPassword, outputFile, false);
+                        break;
                     default:
                         Console.WriteLine($"Menu option {menu} does not exist");
                         break;
@@ -91,8 +103,11 @@ namespace ReelApp
                 Console.WriteLine("Menu Options:");
                 Console.WriteLine("-------------------------------");
                 Console.WriteLine("0  - Inventory Tag (reader)");
-                Console.WriteLine("1  - Set Tag Password (reader, newtagpassword)");
-                Console.WriteLine("2  - Protect Tag (reader, tagpassword)");
+                Console.WriteLine("1  - Inventory Hidden Tag (reader)");
+                Console.WriteLine("2  - Set Tag Password (reader, newtagpassword)");
+                Console.WriteLine("3  - Unlock Tag (reader, tagpassword)");
+                Console.WriteLine("4  - Protect Tag - Keep Password (reader, tagpassword)");
+                Console.WriteLine("5  - Unprotect Tag (reader, tagpassword)");
             }
 
             Console.WriteLine("Press any key to quit");

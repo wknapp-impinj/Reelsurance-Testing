@@ -84,10 +84,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AppProtectTags.cs" />
     <Compile Include="AppUnlockTags.cs" />
     <Compile Include="AppSetPassword.cs" />
     <Compile Include="AppInventoryTags.cs" />
-    <Compile Include="AppProtectTags.cs" />
+    <Compile Include="AppProtectTagsOLD.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="R700Reader.cs" />

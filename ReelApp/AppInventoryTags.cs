@@ -1,5 +1,6 @@
 ﻿using CsvHelper;
 using Impinj.OctaneSdk;
+using OctaneSdk.Impinj.OctaneSdk;
 using System;
 using System.Diagnostics;
 using System.Globalization;
@@ -53,12 +54,15 @@ namespace ReelApp
             TagOperation
         }
 
+        private const int SEARCH_FILTER_COUNT = 5;
+
         // Member Vars
         private ResultData _resultData = null;
         private CsvWriter _resultsLog = null;
         private int _antenna = 0;
         private double _txPower = 0;
         private string _tagPassword = null;
+        private bool _readHidden = false;
         private TagData _currentEpc = null;
         private AppState _currentState = AppState.Idle;
 
@@ -84,6 +88,38 @@ namespace ReelApp
                         config.TxPowerInDbm = _txPower;
                     }
                 });
+            }
+
+            if (_readHidden)
+            {
+                settings.Filters.Mode = TagFilterMode.UseTagSelectFilters;
+
+                // Add a bunch of fake filters for the reader, then add a real filter at the end
+                for (int index = 1; index <= SEARCH_FILTER_COUNT; index++)
+                {
+                    var filter = new TagSelectFilter();
+
+                    if (index == SEARCH_FILTER_COUNT)
+                    {
+                        filter.MemoryBank = MemoryBank.User;
+                        filter.BitPointer = 0;
+                        filter.BitCount = _tagPassword.Length * 4;
+                        filter.TagMask = _tagPassword;
+                        filter.MatchAction = StateUnawareAction.Select;
+                        filter.NonMatchAction = StateUnawareAction.Unselect;
+                    }
+                    else
+                    {
+                        filter.MemoryBank = MemoryBank.Tid;
+                        filter.BitCount = 8;
+                        filter.TagMask = "FF";
+                        filter.BitPointer = 0;
+                        filter.MatchAction = StateUnawareAction.Select;
+                        filter.NonMatchAction = StateUnawareAction.DoNothing;
+                    }
+
+                    settings.Filters.TagSelectFilters.Add(filter);
+                }
             }
 
             return settings;
@@ -158,11 +194,12 @@ namespace ReelApp
         }
 
 
-        internal AppInventoryTags(string readerAddress, int antenna, double txPower, string tagPassword, string outputFile) : base(readerAddress)
+        internal AppInventoryTags(string readerAddress, int antenna, double txPower, string tagPassword, bool readHidden, string outputFile) : base(readerAddress)
         {
             _antenna = antenna;
             _txPower = txPower;
             _tagPassword = tagPassword;
+            _readHidden = readHidden;
             _resultData = new ResultData();
 
             Reader.TagOpComplete += Reader_TagOpComplete;
