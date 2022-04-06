@@ -7,7 +7,7 @@ using System.IO;
 
 namespace ReelApp
 {
-    internal class AppInventoryTags : ReelMachine
+    internal class AppUnlockTags : ReelMachine
     {
 
         private class ResultData
@@ -58,7 +58,7 @@ namespace ReelApp
         private CsvWriter _resultsLog = null;
         private int _antenna = 0;
         private double _txPower = 0;
-        private string _tagPassword = null;
+        private string _newPassword = null;
         private TagData _currentEpc = null;
         private AppState _currentState = AppState.Idle;
 
@@ -89,8 +89,6 @@ namespace ReelApp
             return settings;
         }
 
-
-
         override internal void PerformTagOperation()
         {
             if (Reader.QueryStatus().IsSingulating) Reader.Stop();
@@ -102,27 +100,27 @@ namespace ReelApp
         {
             Tag tag = report.Tags[0];
 
-            if (! tag.Epc.Equals(_currentEpc) && _currentState == AppState.Inventory)
+            if (!tag.Epc.Equals(_currentEpc) && _currentState == AppState.Inventory)
             {
                 _currentEpc = tag.Epc;
 
-                TagOpSequence tagOpSequence = new TagOpSequence();
-                tagOpSequence.TargetTag = new TargetTag()
+                TagOpSequence seq = new TagOpSequence()
                 {
-                    MemoryBank = MemoryBank.Tid,
-                    BitPointer = 0,
-                    Data = tag.Tid.ToHexString()
+                    TargetTag = new TargetTag()
+                    {
+                        MemoryBank = MemoryBank.Tid,
+                        BitPointer = 0,
+                        Data = tag.Tid.ToHexString()
+                    },
                 };
 
-                tagOpSequence.Ops.Add(new TagReadOp()
+                seq.Ops.Add(new TagLockOp()
                 {
-                    MemoryBank = MemoryBank.Reserved,
-                    AccessPassword = TagData.FromHexString(_tagPassword),
-                    WordPointer = 2,
-                    WordCount = 2,
+                    AccessPasswordLockType = TagLockState.Unlock,
+                    EpcLockType = TagLockState.Unlock
                 });
 
-                Reader.AddOpSequence(tagOpSequence);
+                Reader.AddOpSequence(seq);
 
                 _currentState = AppState.TagOperation;
                 _resultData.Reset();
@@ -137,32 +135,45 @@ namespace ReelApp
 
             report.Results.ForEach(result =>
             {
-                TagReadOpResult readResult = result as TagReadOpResult;
-
-                Console.WriteLine($"{_resultData.count}) {DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.ff")} Elapsed:{_resultData.elapsed.TotalMilliseconds} EPC:{readResult.Tag.Epc} Password: {readResult.Data.ToHexWordString()}");
-                if (_resultsLog != null)
+                if (result is TagWriteOpResult)
                 {
-                    _resultsLog.WriteField(_resultData.count);
-                    _resultsLog.WriteField(_resultData.startTime);
-                    _resultsLog.WriteField(_resultData.elapsed.TotalMilliseconds);
-                    _resultsLog.WriteField(readResult.Tag.Tid);
-                    _resultsLog.WriteField(readResult.Tag.Epc);
-                    _resultsLog.WriteField(readResult.Data.ToHexWordString());
-                    _resultsLog.NextRecord();
-                    _resultsLog.Flush();
+                    TagWriteOpResult writeResult = result as TagWriteOpResult;
+
+                    _resultData.epc = writeResult.Tag.Epc.ToString();
+                    _resultData.tid = writeResult.Tag.Tid.ToString();
+                    _resultData.message += $"WriteResultStatus={Enum.GetName(typeof(WriteResultStatus), writeResult.Result)} ";
+                }
+                else if (result is TagLockOpResult)
+                {
+                    TagLockOpResult lockResult = result as TagLockOpResult;
+                    _resultData.message += $"LockResultStatus={Enum.GetName(typeof(LockResultStatus), lockResult.Result)} ";
                 }
             });
+
+            Console.WriteLine($"{_resultData.count}) {DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.ff")} Elapsed:{_resultData.elapsed} EPC:{_resultData.epc} Message:{_resultData.message}");
+            if (_resultsLog != null)
+            {
+                _resultsLog.WriteField(_resultData.count);
+                _resultsLog.WriteField(_resultData.startTime);
+                _resultsLog.WriteField(_resultData.elapsed);
+                _resultsLog.WriteField(_resultData.tid);
+                _resultsLog.WriteField(_resultData.epc);
+                _resultsLog.WriteField(_resultData.message);
+                _resultsLog.NextRecord();
+                _resultsLog.Flush();
+            }
 
             _currentState = AppState.Idle;
             SignalNextTag();
         }
 
 
-        internal AppInventoryTags(string readerAddress, int antenna, double txPower, string tagPassword, string outputFile) : base(readerAddress)
+        internal AppUnlockTags(string readerAddress, int antenna, double txPower, string newPassword, string outputFile) : base(readerAddress)
         {
             _antenna = antenna;
             _txPower = txPower;
-            _tagPassword = tagPassword;
+            this._newPassword = newPassword ?? "00000000";
+
             _resultData = new ResultData();
 
             Reader.TagOpComplete += Reader_TagOpComplete;
@@ -176,7 +187,6 @@ namespace ReelApp
                 _resultsLog.WriteField("elapsed");
                 _resultsLog.WriteField("tid");
                 _resultsLog.WriteField("epc");
-                _resultsLog.WriteField("password");
                 _resultsLog.NextRecord();
                 _resultsLog.Flush();
             }

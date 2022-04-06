@@ -122,12 +122,6 @@ namespace ReelApp
                     Data = TagData.FromHexString(_newPassword)
                 });
 
-                seq.Ops.Add(new TagLockOp()
-                {
-                    AccessPasswordLockType = TagLockState.Lock,
-                    EpcLockType = TagLockState.Lock
-                });
-
                 Reader.AddOpSequence(seq);
 
                 _currentState = AppState.TagOperation;

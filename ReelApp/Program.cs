@@ -64,7 +64,7 @@ namespace ReelApp
                     case 0:
                         // Inventory tag
                         Console.WriteLine("Inventory Tags");
-                        app = new AppInventoryTags(readerAddress, antenna, txPowerInDbm, outputFile);
+                        app = new AppInventoryTags(readerAddress, antenna, txPowerInDbm, tagPassword, outputFile);
                         break;
                     case 1:
                         // Set Tag Password
