@@ -23,11 +23,11 @@ namespace ReelApp
             public string tid { get; set; }
             public string message { get; set; }
 
-            public void Reset()
+            public void Reset(bool doIncrement)
             {
                 stopwatch.Restart();
                 startTime = DateTime.Now;
-                count++;
+                if(doIncrement) count++;
                 epc = null;
                 tid = null;
                 message = null;
@@ -58,7 +58,8 @@ namespace ReelApp
         private CsvWriter _resultsLog = null;
         private int _antenna = 0;
         private double _txPower = 0;
-        private string _newPassword = null;
+        private string _tagPassword = null;
+        private string _newTagPassword = null;
         private TagData _currentEpc = null;
         private AppState _currentState = AppState.Idle;
 
@@ -110,22 +111,22 @@ namespace ReelApp
                     {
                         MemoryBank = MemoryBank.Tid,
                         BitPointer = 0,
-                        Data = tag.Tid.ToHexString()
+                        Data = tag.Tid.ToHexString(),
                     },
                 };
 
                 seq.Ops.Add(new TagWriteOp()
                 {
-                    AccessPassword = null,
+                    AccessPassword = TagData.FromHexString(_tagPassword),
                     MemoryBank = MemoryBank.Reserved,
                     WordPointer = WordPointers.AccessPassword,
-                    Data = TagData.FromHexString(_newPassword)
+                    Data = TagData.FromHexString(_newTagPassword)
                 });
 
                 Reader.AddOpSequence(seq);
 
                 _currentState = AppState.TagOperation;
-                _resultData.Reset();
+                _resultData.Reset(true);
             }
         }
 
@@ -170,11 +171,12 @@ namespace ReelApp
         }
 
 
-        internal AppSetPassword(string readerAddress, int antenna, double txPower, string newPassword, string outputFile) : base(readerAddress)
+        internal AppSetPassword(string readerAddress, int antenna, double txPower, string tagPassword, string newTagPassword, string outputFile) : base(readerAddress)
         {
             _antenna = antenna;
             _txPower = txPower;
-            this._newPassword = newPassword ?? "00000000";
+            _tagPassword = tagPassword ?? "00000000";
+            _newTagPassword = newTagPassword ?? "00000000";
 
             _resultData = new ResultData();
 

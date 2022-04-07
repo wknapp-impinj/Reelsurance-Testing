@@ -3,7 +3,7 @@ using System;
 
 namespace ReelApp
 {
-    internal abstract class ReelMachine
+    internal abstract class ReelMachine:IDisposable
     {
         // Can only have 1 connection to the reader - Static Class Var
         internal static readonly ImpinjReader Reader = new ImpinjReader();
@@ -52,6 +52,12 @@ namespace ReelApp
             }
         }
 
+        public void Dispose()
+        {
+            try { Reader.Stop(); } catch (Exception) { };
+            try { Reader.Disconnect(); } catch (Exception) { };
+        }
+
         private ReelMachine() { }
         internal ReelMachine(string readerAddress)
         {
@@ -65,12 +71,6 @@ namespace ReelApp
                 Console.WriteLine($"Caught error: {e}");
                 Console.WriteLine(e.StackTrace);
             }
-        }
-
-        ~ReelMachine()
-        {
-            try { Reader.Stop(); } catch (Exception) { };
-            try { Reader.Disconnect(); } catch (Exception) { };
         }
     }
 }

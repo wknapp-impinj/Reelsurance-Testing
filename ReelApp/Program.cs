@@ -73,8 +73,8 @@ namespace ReelApp
                         break;
                     case 2:
                         // Set Tag Password
-                        Console.WriteLine($"Setting Password ({tagPassword})");
-                        app = new AppSetPassword(readerAddress, antenna, txPowerInDbm, tagPassword, outputFile);
+                        Console.WriteLine($"Setting Password ({newTagPassword})");
+                        app = new AppSetPassword(readerAddress, antenna, txPowerInDbm, tagPassword, newTagPassword, outputFile);
                         break;
                     case 3:
                         // Unlock Tag
@@ -104,9 +104,9 @@ namespace ReelApp
                 Console.WriteLine("-------------------------------");
                 Console.WriteLine("0  - Inventory Tag (reader)");
                 Console.WriteLine("1  - Inventory Hidden Tag (reader)");
-                Console.WriteLine("2  - Set Tag Password (reader, newtagpassword)");
+                Console.WriteLine("2  - Set Tag Password (reader, tagpassword, newtagpassword)");
                 Console.WriteLine("3  - Unlock Tag (reader, tagpassword)");
-                Console.WriteLine("4  - Protect Tag - Keep Password (reader, tagpassword)");
+                Console.WriteLine("4  - Protect Tag - Keep Password (reader, tagpassword, newtagpassword)");
                 Console.WriteLine("5  - Unprotect Tag (reader, tagpassword)");
             }
 

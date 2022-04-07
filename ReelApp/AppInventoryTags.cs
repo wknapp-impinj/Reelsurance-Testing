@@ -24,11 +24,11 @@ namespace ReelApp
             public string tid { get; set; }
             public string message { get; set; }
 
-            public void Reset()
+            public void Reset(bool doIncrement)
             {
                 stopwatch.Restart();
                 startTime = DateTime.Now;
-                count++;
+                if (doIncrement) count++;
                 epc = null;
                 tid = null;
                 message = null;
@@ -65,6 +65,8 @@ namespace ReelApp
         private bool _readHidden = false;
         private TagData _currentEpc = null;
         private AppState _currentState = AppState.Idle;
+
+        private System.Timers.Timer _opTimer;
 
         internal override Settings ConfigureSettings(Settings settings)
         {
@@ -131,14 +133,17 @@ namespace ReelApp
         {
             if (Reader.QueryStatus().IsSingulating) Reader.Stop();
             _currentState = AppState.Inventory;
+
             Reader.Start();
+            _opTimer.Start();
+            _resultData.Reset(true);    // Do reset here just in case we don't get a tag read
         }
 
         private void Reader_TagsReported(ImpinjReader reader, TagReport report)
         {
             Tag tag = report.Tags[0];
 
-            if (! tag.Epc.Equals(_currentEpc) && _currentState == AppState.Inventory)
+            if (!tag.Epc.Equals(_currentEpc) && _currentState == AppState.Inventory)
             {
                 _currentEpc = tag.Epc;
 
@@ -161,12 +166,13 @@ namespace ReelApp
                 Reader.AddOpSequence(tagOpSequence);
 
                 _currentState = AppState.TagOperation;
-                _resultData.Reset();
+                _resultData.Reset(false);
             }
         }
 
         private void Reader_TagOpComplete(ImpinjReader reader, TagOpReport report)
         {
+            _opTimer.Stop();
             _resultData.StopTimer();
 
             reader.Stop();
@@ -175,7 +181,9 @@ namespace ReelApp
             {
                 TagReadOpResult readResult = result as TagReadOpResult;
 
-                Console.WriteLine($"{_resultData.count}) {DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.ff")} Elapsed:{_resultData.elapsed.TotalMilliseconds} EPC:{readResult.Tag.Epc} Password: {readResult.Data.ToHexWordString()}");
+                string password = readResult.Result == ReadResultStatus.Success ? readResult.Data.ToHexWordString() : Enum.GetName(typeof(ReadResultStatus), readResult.Result);
+
+                Console.WriteLine($"{_resultData.count}) {DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.ff")} Elapsed:{_resultData.elapsed.TotalMilliseconds} EPC:{readResult.Tag.Epc} Password: {password}");
                 if (_resultsLog != null)
                 {
                     _resultsLog.WriteField(_resultData.count);
@@ -183,7 +191,7 @@ namespace ReelApp
                     _resultsLog.WriteField(_resultData.elapsed.TotalMilliseconds);
                     _resultsLog.WriteField(readResult.Tag.Tid);
                     _resultsLog.WriteField(readResult.Tag.Epc);
-                    _resultsLog.WriteField(readResult.Data.ToHexWordString());
+                    _resultsLog.WriteField(password);
                     _resultsLog.NextRecord();
                     _resultsLog.Flush();
                 }
@@ -192,7 +200,29 @@ namespace ReelApp
             _currentState = AppState.Idle;
             SignalNextTag();
         }
+        private void _opTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            _opTimer.Stop();
+            _resultData.StopTimer();
 
+            Reader.Stop();
+
+            Console.WriteLine($"{_resultData.count}) {DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.ff")} Elapsed:{_resultData.elapsed.TotalMilliseconds} EPC:NO_TAG_READ");
+            if (_resultsLog != null)
+            {
+                _resultsLog.WriteField(_resultData.count);
+                _resultsLog.WriteField(_resultData.startTime);
+                _resultsLog.WriteField(_resultData.elapsed.TotalMilliseconds);
+                _resultsLog.WriteField("NO_TAG_READ");
+                _resultsLog.WriteField("");
+                _resultsLog.WriteField("");
+                _resultsLog.NextRecord();
+                _resultsLog.Flush();
+            }
+
+            _currentState = AppState.Idle;
+            SignalNextTag();
+        }
 
         internal AppInventoryTags(string readerAddress, int antenna, double txPower, string tagPassword, bool readHidden, string outputFile) : base(readerAddress)
         {
@@ -201,6 +231,11 @@ namespace ReelApp
             _tagPassword = tagPassword;
             _readHidden = readHidden;
             _resultData = new ResultData();
+
+            _opTimer = new System.Timers.Timer();
+            _opTimer.AutoReset = false;
+            _opTimer.Interval = 1 * 1000; // Milliseconds
+            _opTimer.Elapsed += _opTimer_Elapsed;
 
             Reader.TagOpComplete += Reader_TagOpComplete;
             Reader.TagsReported += Reader_TagsReported;

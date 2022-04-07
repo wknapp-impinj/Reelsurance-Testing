@@ -23,11 +23,11 @@ namespace ReelApp
             public string tid { get; set; }
             public string message { get; set; }
 
-            public void Reset()
+            public void Reset(bool doIncrement)
             {
                 stopwatch.Restart();
                 startTime = DateTime.Now;
-                count++;
+                if(doIncrement) count++;
                 epc = null;
                 tid = null;
                 message = null;
@@ -124,7 +124,7 @@ namespace ReelApp
                 Reader.AddOpSequence(seq);
 
                 _currentState = AppState.TagOperation;
-                _resultData.Reset();
+                _resultData.Reset(true);
             }
         }
 
@@ -188,6 +188,7 @@ namespace ReelApp
                 _resultsLog.WriteField("elapsed");
                 _resultsLog.WriteField("tid");
                 _resultsLog.WriteField("epc");
+                _resultsLog.WriteField("message");
                 _resultsLog.NextRecord();
                 _resultsLog.Flush();
             }

@@ -24,11 +24,11 @@ namespace ReelApp
             public string tid { get; set; }
             public string message { get; set; }
 
-            public void Reset()
+            public void Reset(bool doIncrement)
             {
                 stopwatch.Restart();
                 startTime = DateTime.Now;
-                count++;
+                if(doIncrement) count++;
                 epc = null;
                 tid = null;
                 message = null;
@@ -151,9 +151,20 @@ namespace ReelApp
                     },
                 };
 
+                if (!_tagPassword.Equals(_newTagPassword))
+                {
+                    seq.Ops.Add(new TagWriteOp()
+                    {
+                        AccessPassword = TagData.FromHexString(_tagPassword),
+                        MemoryBank = MemoryBank.Reserved,
+                        WordPointer = WordPointers.AccessPassword,
+                        Data = TagData.FromHexString(_newTagPassword)
+                    });
+                }
+
                 seq.Ops.Add(new TagWriteOp()
                 {
-                    AccessPassword = TagData.FromHexString(_tagPassword),
+                    AccessPassword = TagData.FromHexString(_newTagPassword),
                     MemoryBank = MemoryBank.Reserved,
                     WordPointer = 4,
                     Data = _enable ? TagData.FromHexString("0002") : TagData.FromHexString("0000")
@@ -162,7 +173,7 @@ namespace ReelApp
                 Reader.AddOpSequence(seq);
 
                 _currentState = AppState.TagOperation;
-                _resultData.Reset();
+                _resultData.Reset(true);
             }
         }
 
