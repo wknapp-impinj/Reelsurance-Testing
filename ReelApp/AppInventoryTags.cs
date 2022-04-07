@@ -24,11 +24,10 @@ namespace ReelApp
             public string tid { get; set; }
             public string message { get; set; }
 
-            public void Reset(bool doIncrement)
+            public void Reset()
             {
                 stopwatch.Restart();
                 startTime = DateTime.Now;
-                if (doIncrement) count++;
                 epc = null;
                 tid = null;
                 message = null;
@@ -136,7 +135,7 @@ namespace ReelApp
 
             Reader.Start();
             _opTimer.Start();
-            _resultData.Reset(true);    // Do reset here just in case we don't get a tag read
+            _resultData.Reset();    // Do reset here just in case we don't get a tag read
         }
 
         private void Reader_TagsReported(ImpinjReader reader, TagReport report)
@@ -166,14 +165,16 @@ namespace ReelApp
                 Reader.AddOpSequence(tagOpSequence);
 
                 _currentState = AppState.TagOperation;
-                _resultData.Reset(false);
+                _resultData.Reset();
             }
         }
 
         private void Reader_TagOpComplete(ImpinjReader reader, TagOpReport report)
         {
             _opTimer.Stop();
+
             _resultData.StopTimer();
+            ++_resultData.count;
 
             reader.Stop();
 
@@ -203,7 +204,9 @@ namespace ReelApp
         private void _opTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
         {
             _opTimer.Stop();
+
             _resultData.StopTimer();
+            ++_resultData.count;
 
             Reader.Stop();
 

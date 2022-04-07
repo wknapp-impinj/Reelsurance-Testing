@@ -63,12 +63,12 @@ namespace ReelApp
                 {
                     case 0:
                         // Inventory tag
-                        Console.WriteLine("Inventory Tags");
+                        Console.WriteLine($"Inventory Tags({tagPassword})");
                         app = new AppInventoryTags(readerAddress, antenna, txPowerInDbm, tagPassword, false, outputFile);
                         break;
                     case 1:
                         // Inventory Hidden tag
-                        Console.WriteLine("Inventory Hidden Tags");
+                        Console.WriteLine($"Inventory Hidden Tags ({tagPassword})");
                         app = new AppInventoryTags(readerAddress, antenna, txPowerInDbm, tagPassword, true, outputFile);
                         break;
                     case 2:
@@ -82,7 +82,7 @@ namespace ReelApp
                         app = new AppUnlockTags(readerAddress, antenna, txPowerInDbm, tagPassword, outputFile);
                         break;
                     case 4:
-                        Console.WriteLine("Protecting Tags");
+                        Console.WriteLine($"Protecting Tags ({tagPassword} -> {newTagPassword})");
                         app = new AppProtectTags(readerAddress, antenna, txPowerInDbm, tagPassword, newTagPassword, outputFile, true);
                         break;
                     case 5:
